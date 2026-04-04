@@ -34,6 +34,12 @@ import os as _os
 _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
 from detectors import DETECTORS
 
+try:
+    from tqdm import tqdm as _tqdm
+    _HAVE_TQDM = True
+except ImportError:
+    _HAVE_TQDM = False
+
 
 # ---------------------------------------------------------------------------
 # Scanning
@@ -43,11 +49,14 @@ def scan(scan_dir: Path, library_root: Path, detectors: list) -> tuple[list[Path
     """Walk scan_dir and return (matched files, all files).
 
     Always skips <library_root>/quarantine and <library_root>/tools.
+    Shows a tqdm progress bar on stderr if tqdm is available.
     """
     quarantine_root = library_root / "quarantine"
     tools_root = library_root / "tools"
     matched = []
     all_files = []
+
+    bar = _tqdm(unit=" files", desc="Scanning", dynamic_ncols=True) if _HAVE_TQDM else None
 
     for dirpath, dirnames, filenames in os.walk(scan_dir):
         dirpath = Path(dirpath)
@@ -63,11 +72,22 @@ def scan(scan_dir: Path, library_root: Path, detectors: list) -> tuple[list[Path
             pruned.append(d)
         dirnames[:] = pruned
 
+        if bar is not None:
+            try:
+                bar.set_postfix_str(str(dirpath.relative_to(scan_dir)), refresh=False)
+            except ValueError:
+                bar.set_postfix_str(dirpath.name, refresh=False)
+
         for filename in filenames:
             filepath = dirpath / filename
             all_files.append(filepath)
             if any(det.matches(filepath) for det in detectors):
                 matched.append(filepath)
+            if bar is not None:
+                bar.update(1)
+
+    if bar is not None:
+        bar.close()
 
     return matched, all_files
 

@@ -21,3 +21,5 @@ build/
 
 # OS
 .DS_Store
+
+dry-run-results.txt
