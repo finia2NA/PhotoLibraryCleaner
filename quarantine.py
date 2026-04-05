@@ -270,6 +270,7 @@ def undo(library_root: Path, op_id: str, rating_filter: set[int] | None = None) 
     restored = 0
     skipped = 0
     errors = []
+    remaining_entries = []
 
     for entry in manifest["files"]:
         original = Path(entry["original"])
@@ -283,6 +284,7 @@ def undo(library_root: Path, op_id: str, rating_filter: set[int] | None = None) 
         if rating_filter is not None:
             if read_rating(src) not in rating_filter:
                 skipped += 1
+                remaining_entries.append(entry)
                 continue
 
         original.parent.mkdir(parents=True, exist_ok=True)
@@ -291,6 +293,7 @@ def undo(library_root: Path, op_id: str, rating_filter: set[int] | None = None) 
             restored += 1
         except Exception as e:
             errors.append({"file": str(original), "error": str(e)})
+            remaining_entries.append(entry)
             continue
 
         # Move sidecar .xmp alongside the restored file (non-fatal if missing)
@@ -309,7 +312,13 @@ def undo(library_root: Path, op_id: str, rating_filter: set[int] | None = None) 
         print(f"  {len(errors)} error(s):")
         for e in errors:
             print(f"    {e['file']}: {e['error']}")
-    elif not skipped:
+
+    if remaining_entries:
+        manifest["files"] = remaining_entries
+        manifest["moved"] = len(remaining_entries)
+        with open(manifest_path, "w") as f:
+            json.dump(manifest, f, indent=2)
+    else:
         try:
             shutil.rmtree(str(quarantine_dir))
             print(f"Removed quarantine folder: {quarantine_dir}")
