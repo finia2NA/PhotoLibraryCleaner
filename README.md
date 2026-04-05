@@ -127,6 +127,30 @@ DETECTORS = {
 }
 ```
 
+## Development
+
+### Running the tests
+
+Install the dev dependencies into a virtual environment and run pytest:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -r requirements-dev.txt
+pytest tests/ -v
+```
+
+The test suite uses pytest's `tmp_path` fixture so no files are written outside a temporary directory — safe to run anywhere.
+
+### Test structure
+
+| File | What it covers |
+|------|----------------|
+| `tests/test_detectors.py` | `WhatsAppDetector`: all filename patterns, folder matching, `description()` |
+| `tests/test_xmp.py` | `read_rating` (embedded + sidecar), priority rules, `find_sidecar`, malformed XML |
+| `tests/test_rating_filter.py` | `parse_rating_filter`: `none`, integers, ranges, combinations |
+| `tests/test_integration.py` | Full scan → execute → undo workflow, manifest updates, `list_ops`, dry-run, `--also-match-folder` |
+
 ## How it works
 
 1. **Scan** -- recursively walks the target directory (skipping `quarantine/`), running each file through the active detectors.
