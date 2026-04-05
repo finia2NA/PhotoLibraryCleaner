@@ -1,2 +1,0 @@
-# Optional dependencies
-tqdm  # progress bars during scanning

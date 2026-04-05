@@ -4,7 +4,7 @@ import json
 import pytest
 from pathlib import Path
 
-from quarantine import scan, execute, undo, list_ops, build_detectors
+from photo_cleaner.cli import scan, execute, undo, list_ops, build_detectors
 from tests.conftest import (
     make_jpeg_with_xmp,
     make_xmp,

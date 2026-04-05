@@ -27,11 +27,8 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-import sys as _sys
-import os as _os
-_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
-from detectors import DETECTORS
-from xmp import find_sidecar, read_rating
+from photo_cleaner.detectors import DETECTORS
+from photo_cleaner.xmp import find_sidecar, read_rating
 
 try:
     from tqdm import tqdm as _tqdm

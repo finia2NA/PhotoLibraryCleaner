@@ -1,7 +1,7 @@
 """Tests for parse_rating_filter."""
 
 import pytest
-from quarantine import parse_rating_filter
+from photo_cleaner.cli import parse_rating_filter
 
 
 @pytest.mark.parametrize("args, expected", [

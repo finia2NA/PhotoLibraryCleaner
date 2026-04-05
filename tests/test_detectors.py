@@ -2,7 +2,7 @@
 
 import pytest
 from pathlib import Path
-from detectors.whatsapp import WhatsAppDetector
+from photo_cleaner.detectors.whatsapp import WhatsAppDetector
 
 
 @pytest.fixture()

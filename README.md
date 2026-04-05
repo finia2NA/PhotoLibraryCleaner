@@ -18,12 +18,41 @@ Python tool to sort through a large photo library and "quarantine" files accordi
 
 ## Installation
 
+### pipx (recommended)
+
+[pipx](https://pipx.pypa.io/) installs the tool in an isolated environment and puts the `photo-cleaner` command on your `$PATH`:
+
 ```bash
-git clone <repo-url>
+pipx install git+https://github.com/finia2NA/PhotoLibraryCleaner.git
+
+# With optional progress bar support:
+pipx install "photo-library-cleaner[progress] @ git+https://github.com/finia2NA/PhotoLibraryCleaner.git"
+```
+
+If you don't have pipx yet:
+
+```bash
+# macOS
+brew install pipx && pipx ensurepath
+
+# Linux (Debian/Ubuntu)
+sudo apt install pipx && pipx ensurepath
+```
+
+### pip
+
+```bash
+pip install git+https://github.com/finia2NA/PhotoLibraryCleaner.git
+```
+
+### From source (development)
+
+```bash
+git clone https://github.com/finia2NA/PhotoLibraryCleaner.git
 cd PhotoLibraryCleaner
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -e ".[progress]"
 ```
 
 ## Usage
@@ -34,10 +63,10 @@ All commands default to the current working directory as the library root. Use `
 
 ```bash
 # Preview what would be quarantined (no files are moved)
-python quarantine.py
+photo-cleaner
 
 # Scan a specific directory
-python quarantine.py --root /path/to/photos
+photo-cleaner --root /path/to/photos
 ```
 
 The dry run prints a directory tree with per-folder match counts and percentages.
@@ -46,7 +75,7 @@ The dry run prints a directory tree with per-folder match counts and percentages
 
 ```bash
 # Move matched files to <root>/quarantine/<id>/
-python quarantine.py --execute
+photo-cleaner --execute
 ```
 
 A UUID is printed after execution -- keep it to undo later.
@@ -55,13 +84,13 @@ A UUID is printed after execution -- keep it to undo later.
 
 ```bash
 # Restore all files from a previous operation
-python quarantine.py --undo <id>
+photo-cleaner --undo <id>
 
 # Restore only unrated files and files rated 1-2
-python quarantine.py --undo <id> --rating none 1-2
+photo-cleaner --undo <id> --rating none 1-2
 
 # Restore only files rated 3 or higher (the keepers)
-python quarantine.py --undo <id> --rating 3-5
+photo-cleaner --undo <id> --rating 3-5
 ```
 
 The `--rating` flag accepts `none` (unrated), individual values (`1`, `2`, ..., `5`), and ranges (`3-5`). Embedded XMP is checked first, then sidecar `.xmp` files.
@@ -69,22 +98,22 @@ The `--rating` flag accepts `none` (unrated), individual values (`1`, `2`, ..., 
 ### List past operations
 
 ```bash
-python quarantine.py --list
+photo-cleaner --list
 ```
 
 ### Detector options
 
 ```bash
 # Run only the whatsapp detector
-python quarantine.py --detector whatsapp
+photo-cleaner --detector whatsapp
 
 # Also match files whose folder path contains "WhatsApp"
-python quarantine.py --also-match-folder
+photo-cleaner --also-match-folder
 ```
 
 ## Detectors
 
-Detectors decide which files to quarantine. They are registered in `detectors/__init__.py`.
+Detectors decide which files to quarantine. They are registered in `src/photo_cleaner/detectors/__init__.py`.
 
 ### whatsapp
 
@@ -102,7 +131,7 @@ With `--also-match-folder`, also flags any file inside a directory path containi
 
 ### Writing a custom detector
 
-Create a new file in `detectors/` and subclass `AbstractDetector`:
+Create a new file in `src/photo_cleaner/detectors/` and subclass `AbstractDetector`:
 
 ```python
 from pathlib import Path
@@ -116,7 +145,7 @@ class MyDetector(AbstractDetector):
         ...
 ```
 
-Then register it in `detectors/__init__.py`:
+Then register it in `src/photo_cleaner/detectors/__init__.py`:
 
 ```python
 from .mydetector import MyDetector
@@ -134,9 +163,11 @@ DETECTORS = {
 Install the dev dependencies into a virtual environment and run pytest:
 
 ```bash
+git clone https://github.com/finia2NA/PhotoLibraryCleaner.git
+cd PhotoLibraryCleaner
 python3 -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
-pip install -r requirements-dev.txt
+pip install -e ".[progress,dev]"
 pytest tests/ -v
 ```
 

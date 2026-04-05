@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(source .venv/bin/activate)",
+      "Bash(pip install:*)",
+      "Bash(photo-cleaner -h)",
+      "Bash(pytest tests/ -v)"
+    ]
+  }
+}
