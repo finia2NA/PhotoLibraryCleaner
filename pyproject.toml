@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "photo-library-cleaner"
+version = "1.0.0"
+description = "Quarantine unwanted media from a photo library"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+
+[project.optional-dependencies]
+progress = ["tqdm"]
+dev = ["pytest"]
+
+[project.scripts]
+photo-cleaner = "photo_cleaner.cli:main"

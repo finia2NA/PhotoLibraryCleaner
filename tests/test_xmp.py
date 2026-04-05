@@ -2,7 +2,7 @@
 
 import pytest
 from pathlib import Path
-from xmp import read_rating, find_sidecar
+from photo_cleaner.xmp import read_rating, find_sidecar
 from tests.conftest import make_xmp, make_xmp_element_form, make_jpeg_with_xmp, MINIMAL_JPEG
 
 
