@@ -33,6 +33,7 @@ import sys as _sys
 import os as _os
 _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
 from detectors import DETECTORS
+from xmp import find_sidecar, read_rating
 
 try:
     from tqdm import tqdm as _tqdm
@@ -198,6 +199,16 @@ def execute(library_root: Path, scan_dir: Path, detectors: list, files: list[Pat
             moved += 1
         except Exception as e:
             errors.append({"file": str(src), "error": str(e)})
+            continue
+
+        # Move sidecar .xmp alongside the photo (non-fatal if absent or fails)
+        sidecar_src = find_sidecar(src)
+        if sidecar_src is not None:
+            sidecar_dest = dest.parent / sidecar_src.name
+            try:
+                shutil.move(str(sidecar_src), str(sidecar_dest))
+            except Exception as e:
+                errors.append({"file": str(sidecar_src), "error": f"sidecar move failed: {e}"})
 
     manifest = {
         "id": op_id,
@@ -224,10 +235,32 @@ def execute(library_root: Path, scan_dir: Path, detectors: list, files: list[Pat
 
 
 # ---------------------------------------------------------------------------
+# Rating filter helpers
+# ---------------------------------------------------------------------------
+
+def parse_rating_filter(rating_args: list[str]) -> set[int]:
+    """Parse ['none', '1', '2', '3-5'] into {0, 1, 2, 3, 4, 5}.
+
+    'none' maps to 0 (unrated / no XMP rating present).
+    Ranges like '3-5' are expanded to {3, 4, 5}.
+    """
+    result: set[int] = set()
+    for arg in rating_args:
+        if arg.lower() == "none":
+            result.add(0)
+        elif "-" in arg:
+            lo_s, hi_s = arg.split("-", 1)
+            result.update(range(int(lo_s), int(hi_s) + 1))
+        else:
+            result.add(int(arg))
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Undo
 # ---------------------------------------------------------------------------
 
-def undo(library_root: Path, op_id: str) -> None:
+def undo(library_root: Path, op_id: str, rating_filter: set[int] | None = None) -> None:
     quarantine_dir = library_root / "quarantine" / op_id
     manifest_path = quarantine_dir / "manifest.json"
 
@@ -240,6 +273,7 @@ def undo(library_root: Path, op_id: str) -> None:
 
     files_dir = quarantine_dir / "files"
     restored = 0
+    skipped = 0
     errors = []
 
     for entry in manifest["files"]:
@@ -251,19 +285,36 @@ def undo(library_root: Path, op_id: str) -> None:
             errors.append({"file": str(original), "error": "quarantine file not found"})
             continue
 
+        if rating_filter is not None:
+            if read_rating(src) not in rating_filter:
+                skipped += 1
+                continue
+
         original.parent.mkdir(parents=True, exist_ok=True)
         try:
             shutil.move(str(src), str(original))
             restored += 1
         except Exception as e:
             errors.append({"file": str(original), "error": str(e)})
+            continue
+
+        # Move sidecar .xmp alongside the restored file (non-fatal if missing)
+        sidecar_src = find_sidecar(src)
+        if sidecar_src is not None:
+            sidecar_dest = original.parent / sidecar_src.name
+            try:
+                shutil.move(str(sidecar_src), str(sidecar_dest))
+            except Exception as e:
+                errors.append({"file": str(sidecar_src), "error": f"sidecar move failed: {e}"})
 
     print(f"Restored {restored} file{'s' if restored != 1 else ''}.")
+    if skipped:
+        print(f"  {skipped} file{'s' if skipped != 1 else ''} skipped (rating filter).")
     if errors:
         print(f"  {len(errors)} error(s):")
         for e in errors:
             print(f"    {e['file']}: {e['error']}")
-    else:
+    elif not skipped:
         try:
             shutil.rmtree(str(quarantine_dir))
             print(f"Removed quarantine folder: {quarantine_dir}")
@@ -427,6 +478,18 @@ examples:
         help="List all previous quarantine operations stored under <root>/quarantine/.",
     )
 
+    parser.add_argument(
+        "--rating",
+        nargs="+",
+        metavar="RATING",
+        help=(
+            "With --undo: only restore files whose XMP rating matches. "
+            "Values: none (unrated), 1–5, or ranges like 3-5. "
+            "Embedded XMP is checked first, then sidecar .xmp files. "
+            "Example: --rating none 1 2  or  --rating 3-5"
+        ),
+    )
+
     args = parser.parse_args()
 
     # Resolve library root
@@ -440,8 +503,12 @@ examples:
         list_ops(library_root)
         return
 
+    if args.rating and not args.undo:
+        parser.error("--rating can only be used with --undo")
+
     if args.undo:
-        undo(library_root, args.undo)
+        rating_filter = parse_rating_filter(args.rating) if args.rating else None
+        undo(library_root, args.undo, rating_filter)
         return
 
     # Resolve scan directory
