@@ -9,10 +9,8 @@ Usage:
   python quarantine.py --list                              # show past operations
 
 Options:
-  --root PATH          Library root (default: /mnt/cirrushome/Photos).
+  --root PATH          Directory to scan (default: current working directory).
                        The quarantine folder is always created here.
-  --dir PATH           Directory to scan (default: same as --root).
-                       Use this to test on a small subfolder.
   --detector NAME ...  One or more detectors to run. If omitted, all
                        available detectors are run.
                        Available: whatsapp
@@ -53,7 +51,6 @@ def scan(scan_dir: Path, library_root: Path, detectors: list) -> tuple[list[Path
     Shows a tqdm progress bar on stderr if tqdm is available.
     """
     quarantine_root = library_root / "quarantine"
-    tools_root = library_root / "tools"
     matched = []
     all_files = []
 
@@ -62,13 +59,11 @@ def scan(scan_dir: Path, library_root: Path, detectors: list) -> tuple[list[Path
     for dirpath, dirnames, filenames in os.walk(scan_dir):
         dirpath = Path(dirpath)
 
-        # Skip quarantine and tools folders (modify dirnames in-place to prune)
+        # Skip quarantine folder (modify dirnames in-place to prune)
         pruned = []
         for d in list(dirnames):
             full = dirpath / d
             if full == quarantine_root or str(full).startswith(str(quarantine_root) + os.sep):
-                continue
-            if full == tools_root or str(full).startswith(str(tools_root) + os.sep):
                 continue
             pruned.append(d)
         dirnames[:] = pruned
@@ -391,8 +386,8 @@ examples:
   # Preview what would be moved (default — no files touched)
   python quarantine.py
 
-  # Preview only inside a specific subfolder (good for testing)
-  python quarantine.py --dir MobileBackup/Housecat
+  # Scan a specific directory
+  python quarantine.py --root /path/to/photos
 
   # Run only the whatsapp detector
   python quarantine.py --detector whatsapp
@@ -414,22 +409,11 @@ examples:
     parser.add_argument(
         "--root",
         type=Path,
-        default=Path("/mnt/cirrushome/Photos"),
-        metavar="PATH",
-        help=(
-            "Library root directory. The quarantine folder is always created here. "
-            "(default: /mnt/cirrushome/Photos)"
-        ),
-    )
-    parser.add_argument(
-        "--dir",
-        type=Path,
         default=None,
         metavar="PATH",
         help=(
-            "Directory to scan for matching files. Can be an absolute path or "
-            "relative to --root. Defaults to --root. Use this to test on a "
-            "small subfolder before running on the full library."
+            "Directory to scan. The quarantine folder is created here. "
+            "Defaults to the current working directory."
         ),
     )
     parser.add_argument(
@@ -492,13 +476,15 @@ examples:
 
     args = parser.parse_args()
 
-    # Resolve library root
-    library_root = args.root.resolve()
+    # Resolve root (scan dir + quarantine home): explicit arg or cwd
+    library_root = (args.root if args.root is not None else Path.cwd()).resolve()
     if not library_root.exists():
         print(f"Error: --root path does not exist: {library_root}", file=sys.stderr)
         sys.exit(1)
 
-    # --list and --undo don't need a scan dir or detectors
+    scan_dir = library_root
+
+    # --list and --undo don't need detectors
     if args.list:
         list_ops(library_root)
         return
@@ -510,16 +496,6 @@ examples:
         rating_filter = parse_rating_filter(args.rating) if args.rating else None
         undo(library_root, args.undo, rating_filter)
         return
-
-    # Resolve scan directory
-    if args.dir is None:
-        scan_dir = library_root
-    else:
-        scan_dir = args.dir if args.dir.is_absolute() else (library_root / args.dir)
-        scan_dir = scan_dir.resolve()
-    if not scan_dir.exists():
-        print(f"Error: --dir path does not exist: {scan_dir}", file=sys.stderr)
-        sys.exit(1)
 
     # Build detectors (default: all)
     detector_names = args.detectors if args.detectors else DETECTOR_NAMES
