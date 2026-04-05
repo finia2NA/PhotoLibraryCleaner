@@ -1,1 +1,2 @@
-# No external dependencies — stdlib only
+# Optional dependencies
+tqdm  # progress bars during scanning
